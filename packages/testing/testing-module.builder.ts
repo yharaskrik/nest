@@ -8,6 +8,8 @@ import { DependenciesScanner } from '@nestjs/core/scanner';
 import { OverrideBy, OverrideByFactoryOptions } from './interfaces';
 import { TestingLogger } from './services/testing-logger.service';
 import { TestingModule } from './testing-module';
+import { Type } from '../common/interfaces';
+import { mockProvider } from './mock';
 
 export class TestingModuleBuilder {
   private readonly applicationConfig = new ApplicationConfig();
@@ -17,12 +19,17 @@ export class TestingModuleBuilder {
   private readonly instanceLoader = new InstanceLoader(this.container);
   private readonly module: any;
 
-  constructor(metadataScanner: MetadataScanner, metadata: ModuleMetadata) {
+  constructor(
+    metadataScanner: MetadataScanner,
+    metadata: ModuleMetadata,
+    mocks: Type<any>[] = [],
+  ) {
     this.scanner = new DependenciesScanner(
       this.container,
       metadataScanner,
       this.applicationConfig,
     );
+    this.mockProviders(mocks);
     this.module = this.createModule(metadata);
   }
 
@@ -100,5 +107,14 @@ export class TestingModuleBuilder {
 
   private applyLogger() {
     Logger.overrideLogger(new TestingLogger());
+  }
+
+  private mockProviders(mocks: Type<any>[]) {
+    mocks.forEach((mock: Type<any>) => {
+      const mockedProvider = mockProvider(mock);
+      this.overrideProvider(mockedProvider.provide).useFactory({
+        factory: mockedProvider.useFactory,
+      });
+    });
   }
 }
